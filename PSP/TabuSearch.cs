@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PSP
 {
-    class NeighborSwap 
+    public class NeighborSwap 
     {
         public RcpspJob from;
         public RcpspJob to;
@@ -36,7 +36,7 @@ namespace PSP
     
         }
     }
-    class TabuSearch
+    public static class TabuSearch
     {
         public static int numCandidate = 6;
         public static int maxIterationNum = 500;
@@ -58,34 +58,6 @@ namespace PSP
                 recursiveNode = recursiveNode.Next;
             }
         }
-        //public static void printGUI(LinkedList<RcpspJob> globalList) {
-        //    int[][] arrayText = new int[globalList.Count][];
-        //    int num = 0;
-        //    foreach (RcpspJob job in globalList)
-        //    {
-
-        //        arrayText[num] = new double[job.startTime + job.duration];
-        //        for (int i = 0; i < job.startTime; i++)
-        //        {
-        //            arrayText[num][i] = 0;
-        //        }
-        //        for (int j = 0; j < job.duration; j++)
-        //            arrayText[num][j + job.startTime] = 1;
-        //        num++;
-        //    }
-        //    for (int x = 0; x < arrayText.Length; x++)
-        //    {
-        //        for (int y = 0; y < arrayText[x].Length; y++)
-        //        {
-        //            if (arrayText[x][y] == 0)
-        //                Console.Write("_");
-        //            else
-        //                Console.Write("*");
-        //        }
-        //        Console.WriteLine();
-
-        //    }
-        //}
 
         //禁忌处理，弹出，比较全局最优
 
@@ -381,7 +353,7 @@ namespace PSP
         /// </summary>
         /// <param name="noMap">从0开始到N-1的多项目总大小</param>
         /// <returns></returns>
-        public static void getInitScheduleByMIT(LinkedList<RcpspJob> projJobs)
+        public static double getInitScheduleByMIT(LinkedList<RcpspJob> projJobs,bool withLambda = false)
         {
             //int jobSize = singleProj.TotalJobNumber;
             //LinkedList<RcpspJob> projJobs = singleProj.Jobs;
@@ -399,8 +371,7 @@ namespace PSP
                         selectNode = recusiveNode;
                     else if (selectNode.Value.successors.Count < recusiveNode.Value.successors.Count)
                         selectNode = recusiveNode;
-                    else
-                        ;
+                    
                     recusiveNode = recusiveNode.Next;
                 }
                 //如果不为空，将其拿出队列插到当前位置
@@ -413,6 +384,7 @@ namespace PSP
                 //当前已经确定，可以进行下一个插入
                 curNode = curNode.Next;
             }
+            return calScheduleCore(projJobs, withLambda);
         }
         /// <summary>
         /// 检查当前任务的紧前任务是否在队列指定位置之前
@@ -472,12 +444,15 @@ namespace PSP
         {
 
             //当前调度最大完工时间
+            double totalLamda = 0.0;//未兼容最早节点或者最终节点为坞修任务的情况
+            Dictionary<RcspspProject, double> projsFirstJob = new Dictionary<RcspspProject, double>();
             double totalMaxTime = -1;
             //时间安排逐个进行遍历
             LinkedListNode<RcpspJob> curNode =  projJobs.First;
             while (curNode != null) {
+                RcpspJob curJob = curNode.Value;
                 //通过获取当前任务的所有紧前任务的结束时间，取其中最大，确定一个紧前最早开工时间
-                HashSet<RcpspJob> preds = curNode.Value.predecessors;
+                HashSet<RcpspJob> preds = curJob.predecessors;
                 double predEarliestStartTime = 0;
                 foreach (RcpspJob job in preds) {
                     double endTime = job.startTime+job.duration;
@@ -485,11 +460,11 @@ namespace PSP
                         predEarliestStartTime = endTime;
                 }
                 //获取其需要的所有资源
-                IDictionary<RcpspResource,int> resourceDemands = curNode.Value.resourcesDemand;
+                IDictionary<RcpspResource,int> resourceDemands = curJob.resourcesDemand;
                 //计算资源占用时，以当前任务资源满足并且在持续时间duration内都满足，视为该任务可以安排在此时间
                 int loadTime = 0;
                 double resEarliestStartTime = predEarliestStartTime;
-                while (loadTime <= curNode.Value.duration) {
+                while (loadTime <= curJob.duration) {
                     //当前时间点
                     double currentTime = resEarliestStartTime+loadTime;
                     bool isUpLimit = false;
@@ -536,16 +511,27 @@ namespace PSP
                         loadTime++;
                     }
                 }
-                //设置当前任务的最早开始时间
-                curNode.Value.startTime = resEarliestStartTime;
-                
+                //设置当前项目的最早开始时间
+                curJob.startTime = resEarliestStartTime;
+                if (withLambda&&curJob.sourceProj!=null){
+                	if(projsFirstJob.Keys.Contains(curJob.sourceProj)){
+                		projsFirstJob[curJob.sourceProj] = curJob.startTime<projsFirstJob[curJob.sourceProj]?curJob.startTime:projsFirstJob[curJob.sourceProj];
+                	}else
+                    	projsFirstJob[curJob.sourceProj] = curJob.startTime;
+                }
+                if (withLambda && curJob.isLast && curJob.sourceProj !=null)//最后一个任务一定在最早一个任务的额后边出现
+                {
+                    totalLamda += curJob.sourceProj.Lambda * (curJob.startTime + curJob.duration - projsFirstJob[curJob.sourceProj]);
+                }
                 //保存一个全任务最大完工时间，也可以通过遍历任务队列的开始时间获得
-                if (totalMaxTime < resEarliestStartTime + curNode.Value.duration)
-                    totalMaxTime = resEarliestStartTime + curNode.Value.duration;
+                if (totalMaxTime < resEarliestStartTime + curJob.duration)
+                    totalMaxTime = resEarliestStartTime + curJob.duration;
 
                 //当前处理结束，进行下一个循环,计算队列下一个节点
                 curNode = curNode.Next;
             }
+            if (withLambda)
+                return totalLamda;
             return totalMaxTime; 
         }
     }

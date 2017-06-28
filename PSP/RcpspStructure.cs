@@ -10,7 +10,7 @@ namespace PSP
     /// <summary>
     /// 
     /// </summary>
-    class RcpspSolver {
+    public class RcpspSolver {
         //
         private LinkedList<RcpspResource> _resourceList = new LinkedList<RcpspResource>();
         /// <summary>
@@ -211,9 +211,9 @@ namespace PSP
         }
         
         /// <summary>
-        /// 将组合的项目形成一个单项目，并且计算任务的最优排列和最优解
+        /// 将组合的项目形成一个单项目，并且计算任务的最优排列和最优解,不要使用引用ref或者out，会引起子任务异常
         /// </summary>
-        private static RcspspProject calCombBestScoreByTabuSearch(String uniqeId, List<RcspspProject> projComb)//不要使用引用ref或者out，会引起子任务异常
+        public static RcspspProject calCombBestScoreByTabuSearch(String uniqeId, List<RcspspProject> projComb, bool withMIT = false)
         {
             
             RcspspProject singleProject = new RcspspProject();
@@ -266,7 +266,10 @@ namespace PSP
             }
             singleProject.Jobs.AddLast(lastJob);
             //计算最优时间
-            singleProject.BestSocre = TabuSearch.solve(singleProject.Jobs);
+            if (withMIT) 
+                singleProject.BestSocre = TabuSearch.getInitScheduleByMIT(singleProject.Jobs);
+            else
+                singleProject.BestSocre = TabuSearch.solve(singleProject.Jobs);
             //Thread.Sleep(5000);
             //Console.WriteLine("uniqeId=" + uniqeId + " ---------");
             return singleProject;
@@ -319,13 +322,13 @@ namespace PSP
         /// <param name="projectPartition"></param>
         /// <param name="everyCombBestProj"></param>
         /// <returns></returns>
-        private static RcspspProject calPartitionBestScoreByTabuSearch(List<List<RcspspProject>> projectPartition, Dictionary<String, RcspspProject> everyCombBestProj) {
+        public static RcspspProject calPartitionBestScoreByTabuSearch(List<List<RcspspProject>> projectPartition, Dictionary<String, RcspspProject> everyCombBestProj,bool withMIT=false) {
             //
             RcspspProject singleProject = new RcspspProject();
             singleProject.BestSocre = int.MaxValue;
             RcpspJob zeroJob = new RcpspJob();
             zeroJob.id = "0";
-            zeroJob.isWX = true;
+            //zeroJob.isWX = true;
             zeroJob.isVirtual = true;
             zeroJob.project = "0";
             singleProject.Jobs.AddFirst(zeroJob);
@@ -409,7 +412,7 @@ namespace PSP
             //处理整体，对没有紧后任务的添加虚拟结束节点
             RcpspJob lastJob = new RcpspJob();
             lastJob.id = Convert.ToString(singleProject.Jobs.Count);
-            lastJob.isWX = true;
+            //lastJob.isWX = true;
             lastJob.isVirtual = true;
             lastJob.project = "0";
             foreach (RcpspJob job in singleProject.Jobs)
@@ -424,7 +427,10 @@ namespace PSP
             }
             singleProject.Jobs.AddLast(lastJob);
             //计算最优时间
-            singleProject.BestSocre = TabuSearch.solve(singleProject.Jobs,true);
+            if (withMIT)
+                singleProject.BestSocre = TabuSearch.getInitScheduleByMIT(singleProject.Jobs,true);
+            else
+                singleProject.BestSocre = TabuSearch.solve(singleProject.Jobs,true);
 
             return singleProject;
         }
@@ -433,7 +439,7 @@ namespace PSP
     /// <summary>
     /// 资源受限多项目调度项目类
     /// </summary>
-    class RcspspProject {
+    public class RcspspProject {
         private string projectId;
         /// <summary>
         /// 项目ID
@@ -585,7 +591,7 @@ namespace PSP
     /// <summary>
     /// 资源类，描述资源总数和资源可更新状态
     /// </summary>
-    class RcpspResource
+    public class RcpspResource
     {
         public int max_capacity = 0;
         public int min_capacity = 0;
@@ -593,12 +599,16 @@ namespace PSP
         public bool renewable = true;
     }
 
+    public class RcpspReciep {
+        public double duration = 0;
+        public double startTime = -1;
+    }
     /// <summary>
     /// 任务类，保存项目调度中每个任务，作为项目调度的基本单位
     ///    其中紧前紧后同步更新，便于查询;
     ///    每个项目都有两个虚拟的节点，第0个和第N+1个，其id为字符串0和1，项目合并时便于计算和处理
     /// </summary>
-    class RcpspJob
+    public class RcpspJob
     {
         /// <summary>
         /// 任务序号，guid产生，避免重复
@@ -613,6 +623,7 @@ namespace PSP
         public bool isLast = false;
         public bool isVirtual = false;
 
+        //private RcpspReciep recipt = new RcpspReciep();
         /// <summary>
         /// 紧前工序
         /// </summary>
@@ -626,11 +637,24 @@ namespace PSP
         /// <summary>
         /// 持续时间
         /// </summary>
+        //public double duration {
+        //    get { return recipt.duration; }
+        //    set { recipt.startTime = value; }
+        //}
         public double duration = 0;
 
         /// <summary>
+        /// 源项目
+        /// </summary>
+        public RcspspProject sourceProj = null;
+        /// <summary>
         /// 从时间0开始的当前任务的开始时间
         /// </summary>
+        //public double startTime
+        //{
+        //    get { return recipt.startTime; }
+        //    set { recipt.startTime = value; }
+        //}
         public double startTime = -1;
 
         /// <summary>
@@ -671,8 +695,10 @@ namespace PSP
             cloneJob.isWX = this.isWX;
             cloneJob.resourcesDemand = this.resourcesDemand;
             cloneJob.id = this.id;
+            cloneJob.sourceProj = this.sourceProj;
             cloneJob.isFirst = this.isFirst;
             cloneJob.isLast = this.isLast;
+            //cloneJob.recipt = this.recipt;
             return cloneJob;
         }
     }

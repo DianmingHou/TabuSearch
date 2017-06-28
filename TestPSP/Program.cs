@@ -1,16 +1,20 @@
-﻿using System;
+﻿/*
+ * Created by SharpDevelop.
+ * User: asus
+ * Date: 2017/4/4
+ * Time: 18:19
+ * 
+ * To change this template use Tools | Options | Coding | Edit Standard Headers.
+ */
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-
-namespace PSP
+using PSP;
+namespace TestPSP
 {
-    public class Program
-    {
-        class Edge {
+	class Program
+	{
+		class Edge {
             public RcpspJob from;
             public RcpspJob to;
             public Edge() {
@@ -19,6 +23,62 @@ namespace PSP
             public Edge(RcpspJob from,RcpspJob to) {
                 this.from = from;
                 this.to = to;
+            }
+
+        }
+        public static void allMIT(RcpspSolver solve)
+        {
+
+            solve.generateAllPossiblePartation();
+            string comb1 = "(1,2,5)";
+            string comb2 = "(4)";
+            string comb3 = "(3)";
+
+            solve.EveryCombBestProj[comb1] = RcpspSolver.calCombBestScoreByTabuSearch(comb1, solve.EveryComb[comb1],true);
+            solve.EveryCombBestProj[comb2] = RcpspSolver.calCombBestScoreByTabuSearch(comb2, solve.EveryComb[comb2], true);
+            solve.EveryCombBestProj[comb3] = RcpspSolver.calCombBestScoreByTabuSearch(comb3, solve.EveryComb[comb3], true);
+            foreach (string str in solve.EveryCombBestProj.Keys)
+            {
+                RcspspProject proj = solve.EveryCombBestProj[str];
+                Console.WriteLine("comb core " + str + "is " + proj.BestSocre + " and list is : ");
+                Console.Write("             ");
+                foreach (RcpspJob job in proj.Jobs)
+                {
+                    Console.Write("(" + job.id + "__" + job.project + "__" + job.duration + ")");
+                }
+                Console.WriteLine();
+            }
+            List<List<RcspspProject>> projectPartition = new List<List<RcspspProject>>();
+            projectPartition.Add(solve.EveryComb[comb1]);
+            projectPartition.Add(solve.EveryComb[comb2]);
+            projectPartition.Add(solve.EveryComb[comb3]);
+            RcspspProject bestproj = RcpspSolver.calPartitionBestScoreByTabuSearch(projectPartition, solve.EveryCombBestProj, true);
+            Console.WriteLine("best core is " + bestproj.BestSocre + " and partition is " + bestproj.BestCombStr);
+            foreach (RcpspJob job in bestproj.Jobs)
+            {
+                //Console.Write("[" + job.id + "__" + job.project + "__" + job.startTime+"__"+job.duration + "]");
+                if (job.isWX)
+                {
+                    RcspspProject wxProject = solve.EveryCombBestProj[job.project];
+                    foreach (RcpspJob wxJob in wxProject.Jobs)
+                    {
+                        addJob2Dic(solve.ProjectList, wxJob, job.startTime);
+                    }
+                }
+                else
+                {
+                    addJob2Dic(solve.ProjectList, job);
+                }
+            }
+            //TabuSearch.printGUI(bestproj.Jobs);
+            Console.WriteLine("total time is " + TabuSearch.calScheduleCore(bestproj.Jobs, false));
+            foreach (RcspspProject proj in solve.ProjectList)
+            {
+                Console.WriteLine("Project " + proj.ProjectId);
+                foreach (RcpspJob projJob in proj.Jobs)
+                {
+                    Console.WriteLine(projJob.id + "\t" + projJob.startTime + "\t" + (projJob.startTime + projJob.duration));
+                }
             }
 
         }
@@ -31,21 +91,13 @@ namespace PSP
             //int j = i / 100;
             //int k = i % 100;
             //Console.WriteLine("d is " + i / 100 + " and d1 is " + k);
-            if (args.Length < 1)
-            {
-                Console.WriteLine(" please input multi-projects file");
-                return;
-            }
-            string fileName = args[0];
-            //string fileName = "F:\\VSProject\\TabuSearch\\PSP\\bin\\Release\\000.mp";//args[0];
+            //string fileName = args[0];
+            string fileName = "G:\\Projects\\VS2012\\算例\\000.mp";//args[0];
             RcpspSolver solve = new RcpspSolver();
             solve = RcpspParser.parseMultiProjFile(fileName);
+            allMIT(solve);
+            return;
             //solve.TotalWuWeight = 30;
-            //solve.ProjectList.AddLast(new RcspspProject("0", 10));
-            //solve.ProjectList.AddLast(new RcspspProject("1", 10));
-            //solve.ProjectList.AddLast(new RcspspProject("2", 15));
-            //solve.ProjectList.AddLast(new RcspspProject("3", 5));
-            //solve.ProjectList.AddLast(new RcspspProject("4", 5));
             ////产生所有可行划分和所有划分组合
             solve.generateAllPossiblePartation();
             ////计算所有组合的最优时间和最优分组
@@ -76,8 +128,6 @@ namespace PSP
             foreach (RcpspJob job in bestproj.Jobs)
             {
                 //Console.Write("[" + job.id + "__" + job.project + "__" + job.startTime+"__"+job.duration + "]");
-                //foreach(RcspspProject proj in solve.ProjectList){
-                //}
                 if(job.isWX){
                 	RcspspProject wxProject  = solve.EveryCombBestProj[job.project];
                 	foreach(RcpspJob wxJob in wxProject.Jobs){

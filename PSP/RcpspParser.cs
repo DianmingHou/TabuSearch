@@ -15,7 +15,7 @@ namespace PSP
     /// <summary>
     /// 资源受限的项目调度项目类，
     /// </summary>
-    class RcpspParser
+    public class RcpspParser
     {
         private LinkedList<RcpspJob> taskList = new LinkedList<RcpspJob>();
         public static void generateFromFile(string fileName) {
@@ -161,6 +161,7 @@ namespace PSP
                                     RcpspJob job = new RcpspJob();
                                     job.project = proj.ProjectId;
                                     job.id = Convert.ToString(index + 1);
+                                    job.sourceProj = proj;
                                     
                                     if (index == 0 || index == proj.TaskNumber - 1)
                                         job.isVirtual = true;
@@ -410,11 +411,6 @@ namespace PSP
                                     }
                                     else if (index == 2)
                                     {
-                                        if (job.project == "5" && job.id == "2")
-                                        {
-                                            int idf = 0;
-                                            idf = 82;
-                                        }
                                         //duration
                                         double num = Convert.ToDouble(g.Value);
                                         index++;

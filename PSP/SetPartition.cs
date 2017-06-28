@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace PSP
 {
-    class SetPartition
+    public class SetPartition
     {
         public static IEnumerable<List<List<T>>> GetAllPartitions<T>(T[] elements)
         {
