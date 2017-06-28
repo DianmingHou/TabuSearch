@@ -1,0 +1,65 @@
+package com.wise.excel;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Iterator;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+public class ExportExcel {
+
+	public static void main(String[] args) throws SQLException, ClassNotFoundException, FileNotFoundException, IOException {
+		// TODO Auto-generated method stub
+		XSSFWorkbook workbook = new XSSFWorkbook( new FileInputStream("E:\\111.xlsx"));
+		Class.forName("oracle.jdbc.driver.OracleDriver");
+		Connection conn = DriverManager.getConnection("jdbc:oracle:thin:@192.168.6.32:1521:wisebom", "wisebom", "wisebom");
+		PreparedStatement stamt =  conn.prepareStatement("insert into HOU_TEST values (sys_guid(),?,?,?,?,?,?,?,?,?,?,"
+				+ "?,?,?,?,?,?,?,?,?,?,"
+				+ "?,?,?,?,?,?,?,?,?,?,"
+				+ "?,?,?,?,?,?,?,?,?,?,"
+				+ "?,?,?,?,?,?,?,?,?,?) ");
+		//stamt.addBatch(sql);
+		Iterator<XSSFSheet> sheetIter = workbook.iterator();
+		while(sheetIter.hasNext()){
+			XSSFSheet sheet = sheetIter.next();
+			Iterator<Row> rowIter = sheet.iterator();
+			while(rowIter.hasNext()){
+				Row row = rowIter.next();
+				Iterator<Cell> cellIter = row.iterator();
+				int indexNum = 1;
+				while(cellIter.hasNext()){
+					Cell cell = cellIter.next();
+					int cellType = cell.getCellType();
+					String value = "";
+					switch (cellType){
+					case Cell.CELL_TYPE_STRING:
+						value = cell.getStringCellValue();break;
+					case Cell.CELL_TYPE_NUMERIC:
+						value = String.valueOf(cell.getNumericCellValue());
+						break;
+					case Cell.CELL_TYPE_BLANK:
+						value = "";
+						break;
+					default:break;
+					}
+					stamt.setString(indexNum++, value);
+				}
+				stamt.addBatch();
+			}
+		}
+		stamt.executeBatch(); 
+		conn.commit();  
+		conn.close();
+	}
+
+}
